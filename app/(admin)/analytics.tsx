@@ -5,8 +5,7 @@ import { ChartBar as BarChart3, Users, Building, TrendingUp, Award, Download, Ch
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
 import * as XLSX from 'xlsx';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import * as FileSaver from 'file-saver';
 
 interface PlacementStats {
   totalCompanies: number;
@@ -252,69 +251,200 @@ export default function AnalyticsScreen() {
 
   const generateReport = async () => {
     try {
-      // Create workbook
-      const wb = XLSX.utils.book_new();
+      // Create workbook with multiple sheets
+      const workbook = XLSX.utils.book_new();
       
-      // Overview Sheet
+      // 1. Overview Sheet
       const overviewData = [
-        ['Placement Analytics Report'],
-        [`Generated on: ${new Date().toLocaleDateString()}`],
+        ['PLACEMENT ANALYTICS REPORT'],
+        [`Generated on: ${new Date().toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })}`],
         [''],
-        ['Overview Statistics'],
+        ['OVERVIEW STATISTICS'],
+        ['Metric', 'Value'],
         ['Total Companies', stats.totalCompanies],
         ['Total Applications', stats.totalApplications],
         ['Total Accepted', stats.totalAccepted],
-        ['Success Rate', `${stats.acceptanceRate.toFixed(1)}%`]
+        ['Overall Success Rate', `${stats.acceptanceRate.toFixed(1)}%`],
+        [''],
+        ['KEY INSIGHTS'],
+        ['Most Active Company', stats.companiesData.length > 0 ? stats.companiesData.reduce((prev, current) => 
+          (prev.total_applications > current.total_applications) ? prev : current
+        ).company_name : 'N/A'],
+        ['Highest Success Rate Company', stats.companiesData.length > 0 ? stats.companiesData.reduce((prev, current) => 
+          (prev.acceptance_rate > current.acceptance_rate) ? prev : current
+        ).company_name : 'N/A'],
+        ['Most Participating Class', stats.classWiseStats.length > 0 ? stats.classWiseStats.reduce((prev, current) => 
+          (prev.applied_students > current.applied_students) ? prev : current
+        ).class : 'N/A']
       ];
       
-      const overviewWs = XLSX.utils.aoa_to_sheet(overviewData);
-      XLSX.utils.book_append_sheet(wb, overviewWs, 'Overview');
+      const overviewSheet = XLSX.utils.aoa_to_sheet(overviewData);
       
-      // Company Performance Sheet
+      // Set column widths for overview
+      overviewSheet['!cols'] = [
+        { wch: 25 }, // Metric column
+        { wch: 20 }  // Value column
+      ];
+      
+      // Style the header row
+      if (overviewSheet['A1']) {
+        overviewSheet['A1'].s = {
+          font: { bold: true, sz: 16 },
+          alignment: { horizontal: 'center' }
+        };
+      }
+      
+      XLSX.utils.book_append_sheet(workbook, overviewSheet, 'Overview');
+      
+      // 2. Company Performance Sheet
+      const companyHeaders = ['Company Name', 'Total Applications', 'Accepted Applications', 'Rejected Applications', 'Acceptance Rate (%)'];
+      const companyRows = stats.companiesData.map(company => [
+        company.company_name,
+        company.total_applications,
+        company.accepted_applications,
+        company.total_applications - company.accepted_applications,
+        company.acceptance_rate.toFixed(1)
+      ]);
+      
       const companyData = [
-        ['Company', 'Applications', 'Accepted', 'Acceptance Rate'],
+        ['COMPANY PERFORMANCE ANALYSIS'],
+        [''],
+        companyHeaders,
+        ...companyRows,
+        [''],
+        ['SUMMARY'],
+        ['Total Companies', stats.companiesData.length],
+        ['Average Applications per Company', stats.companiesData.length > 0 ? 
+          (stats.companiesData.reduce((sum, c) => sum + c.total_applications, 0) / stats.companiesData.length).toFixed(1) : '0'],
+        ['Average Acceptance Rate', stats.companiesData.length > 0 ? 
+          (stats.companiesData.reduce((sum, c) => sum + c.acceptance_rate, 0) / stats.companiesData.length).toFixed(1) + '%' : '0%']
+      ];
+      
+      const companySheet = XLSX.utils.aoa_to_sheet(companyData);
+      
+      // Set column widths for company sheet
+      companySheet['!cols'] = [
+        { wch: 20 }, // Company Name
+        { wch: 18 }, // Total Applications
+        { wch: 20 }, // Accepted Applications
+        { wch: 20 }, // Rejected Applications
+        { wch: 18 }  // Acceptance Rate
+      ];
+      
+      XLSX.utils.book_append_sheet(workbook, companySheet, 'Company Performance');
+      
+      // 3. Class Performance Sheet
+      const classHeaders = ['Class', 'Total Students', 'Students Applied', 'Students Placed', 'Application Rate (%)', 'Placement Rate (%)'];
+      const classRows = stats.classWiseStats.map(classData => [
+        classData.class,
+        classData.total_students,
+        classData.applied_students,
+        classData.accepted_students,
+        classData.total_students > 0 ? ((classData.applied_students / classData.total_students) * 100).toFixed(1) : '0',
+        classData.total_students > 0 ? ((classData.accepted_students / classData.total_students) * 100).toFixed(1) : '0'
+      ]);
+      
+      const classData = [
+        ['CLASS PERFORMANCE ANALYSIS'],
+        [''],
+        classHeaders,
+        ...classRows,
+        [''],
+        ['SUMMARY'],
+        ['Total Students', stats.classWiseStats.reduce((sum, c) => sum + c.total_students, 0)],
+        ['Total Applied', stats.classWiseStats.reduce((sum, c) => sum + c.applied_students, 0)],
+        ['Total Placed', stats.classWiseStats.reduce((sum, c) => sum + c.accepted_students, 0)],
+        ['Overall Application Rate', stats.classWiseStats.reduce((sum, c) => sum + c.total_students, 0) > 0 ? 
+          ((stats.classWiseStats.reduce((sum, c) => sum + c.applied_students, 0) / 
+            stats.classWiseStats.reduce((sum, c) => sum + c.total_students, 0)) * 100).toFixed(1) + '%' : '0%'],
+        ['Overall Placement Rate', stats.classWiseStats.reduce((sum, c) => sum + c.total_students, 0) > 0 ? 
+          ((stats.classWiseStats.reduce((sum, c) => sum + c.accepted_students, 0) / 
+            stats.classWiseStats.reduce((sum, c) => sum + c.total_students, 0)) * 100).toFixed(1) + '%' : '0%']
+      ];
+      
+      const classSheet = XLSX.utils.aoa_to_sheet(classData);
+      
+      // Set column widths for class sheet
+      classSheet['!cols'] = [
+        { wch: 12 }, // Class
+        { wch: 15 }, // Total Students
+        { wch: 16 }, // Students Applied
+        { wch: 16 }, // Students Placed
+        { wch: 18 }, // Application Rate
+        { wch: 18 }  // Placement Rate
+      ];
+      
+      XLSX.utils.book_append_sheet(workbook, classSheet, 'Class Performance');
+      
+      // 4. Detailed Statistics Sheet
+      const detailedData = [
+        ['DETAILED STATISTICS'],
+        [''],
+        ['PLACEMENT METRICS'],
+        ['Total Placement Events', 'Data not available in current stats'],
+        ['Active Companies', stats.totalCompanies],
+        ['Total Student Applications', stats.totalApplications],
+        ['Successful Placements', stats.totalAccepted],
+        ['Pending Applications', stats.totalApplications - stats.totalAccepted],
+        ['Success Rate', `${stats.acceptanceRate.toFixed(2)}%`],
+        [''],
+        ['COMPANY BREAKDOWN'],
+        ['Company Name', 'Applications', 'Success Rate'],
         ...stats.companiesData.map(company => [
           company.company_name,
           company.total_applications,
-          company.accepted_applications,
           `${company.acceptance_rate.toFixed(1)}%`
-        ])
-      ];
-      
-      const companyWs = XLSX.utils.aoa_to_sheet(companyData);
-      XLSX.utils.book_append_sheet(wb, companyWs, 'Company Performance');
-      
-      // Class Performance Sheet
-      const classData = [
-        ['Class', 'Total Students', 'Applied', 'Placed', 'Placement Rate'],
+        ]),
+        [''],
+        ['CLASS BREAKDOWN'],
+        ['Class', 'Enrollment', 'Participation', 'Success'],
         ...stats.classWiseStats.map(classData => [
           classData.class,
           classData.total_students,
           classData.applied_students,
-          classData.accepted_students,
-          classData.total_students > 0 ? `${((classData.accepted_students / classData.total_students) * 100).toFixed(1)}%` : '0%'
+          classData.accepted_students
         ])
       ];
       
-      const classWs = XLSX.utils.aoa_to_sheet(classData);
-      XLSX.utils.book_append_sheet(wb, classWs, 'Class Performance');
+      const detailedSheet = XLSX.utils.aoa_to_sheet(detailedData);
       
-      // Save the Excel file
+      // Set column widths for detailed sheet
+      detailedSheet['!cols'] = [
+        { wch: 25 }, // Labels/Company Name/Class
+        { wch: 15 }, // Values/Applications/Enrollment
+        { wch: 15 }  // Success Rate/Participation/Success
+      ];
+      
+      XLSX.utils.book_append_sheet(workbook, detailedSheet, 'Detailed Statistics');
+      
+      // Generate file and download
       const timestamp = new Date().toISOString().split('T')[0];
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
       const filename = `Placement_Analytics_Report_${timestamp}.xlsx`;
-      const fileUri = FileSystem.documentDirectory + filename;
       
-      await FileSystem.writeAsStringAsync(fileUri, wbout, {
-        encoding: FileSystem.EncodingType.Base64,
+      // Write workbook to array buffer
+      const wbout = XLSX.write(workbook, { 
+        bookType: 'xlsx', 
+        type: 'array',
+        cellStyles: true 
       });
       
-      await Sharing.shareAsync(fileUri);
+      // Create blob and download
+      const blob = new Blob([wbout], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
       
-      Alert.alert('Success', 'Analytics report downloaded successfully as Excel file!');
+      FileSaver.saveAs(blob, filename);
+      
+      Alert.alert('Success', `Analytics report "${filename}" downloaded successfully!`);
     } catch (error) {
       console.error('Excel generation error:', error);
-      Alert.alert('Error', 'Failed to generate Excel report');
+      Alert.alert('Error', 'Failed to generate Excel report. Please try again.');
     }
   };
 
