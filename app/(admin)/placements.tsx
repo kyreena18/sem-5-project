@@ -7,8 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { formatDate, getStatusColor } from '@/lib/utils';
 import * as XLSX from 'xlsx';
-import * as FileSaver from 'file-saver';
-import * as JSZip from 'jszip';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import JSZip from 'jszip';
 
 interface PlacementEvent {
   id: string;
@@ -173,7 +174,7 @@ export default function AdminPlacementsScreen() {
         return;
       }
 
-      const zip = new JSZip.default();
+      const zip = new JSZip();
       let downloadCount = 0;
 
       // Download each offer letter and add to zip
@@ -202,7 +203,36 @@ export default function AdminPlacementsScreen() {
       const timestamp = new Date().toISOString().split('T')[0];
       const zipFileName = `${event.company_name.replace(/[^a-zA-Z0-9]/g, '_')}_Offer_Letters_${timestamp}.zip`;
       
-      FileSaver.saveAs(zipBlob, zipFileName);
+      if (Platform.OS === 'web') {
+        // Web platform - create download link
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = zipFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Mobile platform - save and share
+        const zipBase64 = await zip.generateAsync({ type: 'base64' });
+        const fileUri = FileSystem.documentDirectory + zipFileName;
+        
+        await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/zip',
+            dialogTitle: 'Save Offer Letters ZIP',
+            UTI: 'public.zip-archive'
+          });
+        } else {
+          Alert.alert('File Saved', `ZIP file saved to: ${fileUri}`);
+        }
+      }
       
       Alert.alert('Success', `Downloaded ${downloadCount} offer letters in ${zipFileName}`);
     } catch (error) {
@@ -357,7 +387,7 @@ export default function AdminPlacementsScreen() {
       return;
     }
 
-    try {
+    const exportData = async () => {
       // Get all additional requirement types from the selected event
       const additionalRequirementTypes = (selectedEvent.additional_requirements || []).map((r: { type: string }) => r.type);
 
@@ -423,15 +453,49 @@ export default function AdminPlacementsScreen() {
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `${selectedEvent.company_name}_${selectedEvent.title.replace(/[^a-zA-Z0-9]/g, '_')}_Applications_${timestamp}.xlsx`;
 
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([wbout], { type: 'application/octet-stream' });
-      FileSaver.default.saveAs(blob, filename);
+      if (Platform.OS === 'web') {
+        // Web platform
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Mobile platform
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        await FileSystem.writeAsStringAsync(fileUri, wbout, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            dialogTitle: 'Save Excel Report',
+            UTI: 'com.microsoft.excel.xlsx'
+          });
+        } else {
+          Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
+        }
+      }
 
       Alert.alert('Success', `Excel file downloaded successfully!`);
-    } catch (error) {
+    };
+
+    exportData().catch(error => {
       console.error('Export error:', error);
       Alert.alert('Export Failed', 'Could not export applications to Excel');
-    }
+    });
   };
 
 

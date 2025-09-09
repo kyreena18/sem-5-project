@@ -9,7 +9,8 @@ import { STATIC_ASSIGNMENTS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
-import * as FileSaver from 'file-saver';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 interface StudentProfile {
   id: string;
@@ -177,7 +178,7 @@ export default function ClassView() {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     try {
       const data = profiles.map((profile, index) => {
         const studentSubmissions = submissions[profile.student_id] || [];
@@ -233,8 +234,41 @@ export default function ClassView() {
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `${classId}_Internship_Report_${timestamp}.xlsx`;
       
-      // For web environment, use XLSX.writeFile
-      XLSX.writeFile(workbook, filename);
+      if (Platform.OS === 'web') {
+        // Web platform
+        const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Mobile platform
+        const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        await FileSystem.writeAsStringAsync(fileUri, wbout, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            dialogTitle: 'Save Internship Report',
+            UTI: 'com.microsoft.excel.xlsx'
+          });
+        } else {
+          Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
+        }
+      }
       
       Alert.alert('Success', `Excel report for ${classId} downloaded successfully!`);
     } catch (error) {
@@ -294,11 +328,40 @@ export default function ClassView() {
       }
 
       // Generate and download zip file
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
       const timestamp = new Date().toISOString().split('T')[0];
       const zipFileName = `${classId}_${assignment.title.replace(/\s+/g, '_')}_${timestamp}.zip`;
       
-      FileSaver.default.saveAs(zipBlob, zipFileName);
+      if (Platform.OS === 'web') {
+        // Web platform
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = zipFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Mobile platform
+        const zipBase64 = await zip.generateAsync({ type: 'base64' });
+        const fileUri = FileSystem.documentDirectory + zipFileName;
+        
+        await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/zip',
+            dialogTitle: 'Save Documents ZIP',
+            UTI: 'public.zip-archive'
+          });
+        } else {
+          Alert.alert('File Saved', `ZIP file saved to: ${fileUri}`);
+        }
+      }
       
       Alert.alert('Success', `Downloaded ${downloadCount} ${assignment.title} documents in ${zipFileName}`);
     } catch (error) {
