@@ -5,8 +5,9 @@ import { ChartBar as BarChart3, Users, Building, TrendingUp, Award, Download, Ch
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
 import * as XLSX from 'xlsx';
-import * as FileSaver from 'file-saver';
-
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 interface PlacementStats {
   totalCompanies: number;
   totalApplications: number;
@@ -251,6 +252,13 @@ export default function AnalyticsScreen() {
 
   const generateReport = async () => {
     try {
+      // Check if sharing is available on this platform
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable && Platform.OS !== 'web') {
+        Alert.alert('Not Available', 'File sharing is not available on this device.');
+        return;
+      }
+
       // Create workbook with multiple sheets
       const workbook = XLSX.utils.book_new();
       
@@ -427,24 +435,52 @@ export default function AnalyticsScreen() {
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `Placement_Analytics_Report_${timestamp}.xlsx`;
       
-      // Write workbook to array buffer
-      const wbout = XLSX.write(workbook, { 
-        bookType: 'xlsx', 
-        type: 'array',
-        cellStyles: true 
-      });
-      
-      // Create blob and download
-      const blob = new Blob([wbout], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      });
-      
-      FileSaver.saveAs(blob, filename);
+      if (Platform.OS === 'web') {
+        // Web platform - use blob and download
+        const wbout = XLSX.write(workbook, { 
+          bookType: 'xlsx', 
+          type: 'array',
+          cellStyles: true 
+        });
+        
+        const blob = new Blob([wbout], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
+        // Create download link for web
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Mobile platform - use FileSystem and Sharing
+        const wbout = XLSX.write(workbook, { 
+          bookType: 'xlsx', 
+          type: 'base64',
+          cellStyles: true 
+        });
+        
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        await FileSystem.writeAsStringAsync(fileUri, wbout, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          dialogTitle: 'Save Analytics Report',
+          UTI: 'com.microsoft.excel.xlsx'
+        });
+      }
       
       Alert.alert('Success', `Analytics report "${filename}" downloaded successfully!`);
     } catch (error) {
       console.error('Excel generation error:', error);
-      Alert.alert('Error', 'Failed to generate Excel report. Please try again.');
+      Alert.alert('Error', `Failed to generate Excel report: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
