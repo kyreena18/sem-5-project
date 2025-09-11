@@ -708,21 +708,23 @@ export default function PlacementsScreen() {
 
                 {submittedRequirements[`${selectedEvent.id}_${requirement.type}`] ? (
                   <View style={styles.submittedSection}>
-                    <View style={styles.submittedIndicator}>
-                      <CheckCircle size={16} color="#34C759" />
-                      <Text style={styles.submittedText}>Submitted</Text>
-                    </View>
-                    {requirementUrls[`${selectedEvent.id}_${requirement.type}`] && (
-                      <TouchableOpacity
-                        style={styles.reuploadButton}
-                        onPress={() => Linking.openURL(requirementUrls[`${selectedEvent.id}_${requirement.type}`])}
-                      >
-                        <Upload size={16} color="#007AFF" />
-                        <Text style={styles.reuploadText}>
-                          {uploading === requirement.type ? 'Uploading...' : 'Update'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+                    <>
+                      <View style={styles.submittedIndicator}>
+                        <CheckCircle size={16} color="#34C759" />
+                        <Text style={styles.submittedText}>Submitted</Text>
+                      </View>
+                      {requirementUrls[`${selectedEvent.id}_${requirement.type}`] && (
+                        <TouchableOpacity
+                          style={styles.reuploadButton}
+                          onPress={() => Linking.openURL(requirementUrls[`${selectedEvent.id}_${requirement.type}`])}
+                        >
+                          <Upload size={16} color="#007AFF" />
+                          <Text style={styles.reuploadText}>
+                            {uploading === requirement.type ? 'Uploading...' : 'Update'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
                   </View>
                 ) : (
                   <TouchableOpacity
