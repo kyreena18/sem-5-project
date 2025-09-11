@@ -451,7 +451,7 @@ export default function AdminPlacementsScreen() {
       XLSX.utils.book_append_sheet(wb, ws, 'Applications');
 
       const timestamp = new Date().toISOString().split('T')[0];
-      const filename = `${selectedEvent.company_name}_${selectedEvent.title.replace(/[^a-zA-Z0-9]/g, '_')}_Applications_${timestamp}.xlsx`;
+      const filename = `${selectedEvent.company_name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20)}_Applications_${timestamp}.xlsx`;
 
       if (Platform.OS === 'web') {
         // Web platform
