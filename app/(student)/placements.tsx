@@ -717,23 +717,7 @@ export default function PlacementsScreen() {
                       <TouchableOpacity
                         style={styles.reuploadButton}
                         onPress={() => Linking.openURL(requirementUrls[`${selectedEvent.id}_${requirement.type}`])}
-                          const openPDF = async () => {
-                            try {
-                              if (Platform.OS === 'web') {
-                                window.open(application.offer_letter_url, '_blank');
-                              } else {
-                                // For mobile, use WebBrowser to open PDF
-                                await WebBrowser.openBrowserAsync(application.offer_letter_url, {
-                                  presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-                                  controlsColor: '#007AFF',
-                                });
-                              }
-                            } catch (error) {
-                              console.error('PDF open error:', error);
-                              Alert.alert('Error', 'Failed to open offer letter. Please check your internet connection.');
-                            }
-                          };
-                          openPDF();
+                      >
                       <Upload size={16} color="#007AFF" />
                       <Text style={styles.reuploadText}>
                         {uploading === requirement.type ? 'Uploading...' : 'Update'}
