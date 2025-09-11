@@ -672,7 +672,6 @@ export default function PlacementsScreen() {
                   )}
                 </View>
               );
-
             })}
           </View>
         )}
@@ -718,11 +717,12 @@ export default function PlacementsScreen() {
                         style={styles.reuploadButton}
                         onPress={() => Linking.openURL(requirementUrls[`${selectedEvent.id}_${requirement.type}`])}
                       >
-                      <Upload size={16} color="#007AFF" />
-                      <Text style={styles.reuploadText}>
-                        {uploading === requirement.type ? 'Uploading...' : 'Update'}
-                      </Text>
-                    </TouchableOpacity>
+                        <Upload size={16} color="#007AFF" />
+                        <Text style={styles.reuploadText}>
+                          {uploading === requirement.type ? 'Uploading...' : 'Update'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ) : (
                   <TouchableOpacity
