@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as WebBrowser from 'expo-web-browser';
 
 interface StudentProfile {
   id: string;
@@ -251,22 +252,30 @@ export default function ClassView() {
         URL.revokeObjectURL(url);
       } else {
         // Mobile platform
-        const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-        const fileUri = FileSystem.documentDirectory + filename;
-        
-        await FileSystem.writeAsStringAsync(fileUri, wbout, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
-          await Sharing.shareAsync(fileUri, {
-            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            dialogTitle: 'Save Internship Report',
-            UTI: 'com.microsoft.excel.xlsx'
+        try {
+          const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+          const fileUri = `${FileSystem.documentDirectory}${filename}`;
+          
+          // Ensure the directory exists
+          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
+          
+          await FileSystem.writeAsStringAsync(fileUri, wbout, {
+            encoding: FileSystem.EncodingType.Base64,
           });
-        } else {
-          Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
+          
+          const isAvailable = await Sharing.isAvailableAsync();
+          if (isAvailable) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              dialogTitle: 'Save Internship Report',
+              UTI: 'com.microsoft.excel.xlsx'
+            });
+          } else {
+            Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
+          }
+        } catch (fileError) {
+          console.error('File write error:', fileError);
+          throw new Error(`Failed to save internship report: ${fileError.message}`);
         }
       }
       
@@ -344,22 +353,30 @@ export default function ClassView() {
         URL.revokeObjectURL(url);
       } else {
         // Mobile platform
-        const zipBase64 = await zip.generateAsync({ type: 'base64' });
-        const fileUri = FileSystem.documentDirectory + zipFileName;
-        
-        await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
-          await Sharing.shareAsync(fileUri, {
-            mimeType: 'application/zip',
-            dialogTitle: 'Save Documents ZIP',
-            UTI: 'public.zip-archive'
+        try {
+          const zipBase64 = await zip.generateAsync({ type: 'base64' });
+          const fileUri = `${FileSystem.documentDirectory}${zipFileName}`;
+          
+          // Ensure the directory exists
+          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
+          
+          await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
+            encoding: FileSystem.EncodingType.Base64,
           });
-        } else {
-          Alert.alert('File Saved', `ZIP file saved to: ${fileUri}`);
+          
+          const isAvailable = await Sharing.isAvailableAsync();
+          if (isAvailable) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: 'application/zip',
+              dialogTitle: 'Save Documents ZIP',
+              UTI: 'public.zip-archive'
+            });
+          } else {
+            Alert.alert('File Saved', `ZIP file saved to: ${fileUri}`);
+          }
+        } catch (fileError) {
+          console.error('ZIP write error:', fileError);
+          throw new Error(`Failed to save ZIP file: ${fileError.message}`);
         }
       }
       
@@ -384,14 +401,17 @@ export default function ClassView() {
       return;
     }
     try {
-      // Open the URL directly - it should now display inline
       if (Platform.OS === 'web') {
         window.open(submission.file_url, '_blank');
       } else {
-        await Linking.openURL(submission.file_url);
+        await WebBrowser.openBrowserAsync(submission.file_url, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+          controlsColor: '#007AFF',
+        });
       }
     } catch (error) {
-      Alert.alert('Error', `Failed to open ${title}.`);
+      console.error('PDF view error:', error);
+      Alert.alert('Error', `Failed to open ${title}. Please check your internet connection.`);
     }
   };
 

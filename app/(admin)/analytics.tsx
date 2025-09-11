@@ -458,23 +458,36 @@ export default function AnalyticsScreen() {
         URL.revokeObjectURL(url);
       } else {
         // Mobile platform - use FileSystem and Sharing
-        const wbout = XLSX.write(workbook, { 
-          bookType: 'xlsx', 
-          type: 'base64',
-          cellStyles: true 
-        });
-        
-        const fileUri = FileSystem.documentDirectory + filename;
-        
-        await FileSystem.writeAsStringAsync(fileUri, wbout, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        await Sharing.shareAsync(fileUri, {
-          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          dialogTitle: 'Save Analytics Report',
-          UTI: 'com.microsoft.excel.xlsx'
-        });
+        try {
+          const wbout = XLSX.write(workbook, { 
+            bookType: 'xlsx', 
+            type: 'base64',
+            cellStyles: true 
+          });
+          
+          const fileUri = `${FileSystem.documentDirectory}${filename}`;
+          
+          // Ensure the directory exists
+          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
+          
+          await FileSystem.writeAsStringAsync(fileUri, wbout, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          
+          const isAvailable = await Sharing.isAvailableAsync();
+          if (isAvailable) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              dialogTitle: 'Save Analytics Report',
+              UTI: 'com.microsoft.excel.xlsx'
+            });
+          } else {
+            Alert.alert('File Saved', `Analytics report saved to: ${fileUri}`);
+          }
+        } catch (fileError) {
+          console.error('File write error:', fileError);
+          throw new Error(`Failed to save analytics report: ${fileError.message}`);
+        }
       }
       
       Alert.alert('Success', `Analytics report "${filename}" downloaded successfully!`);

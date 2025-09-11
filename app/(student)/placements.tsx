@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
+import * as FileSystem from 'expo-file-system';
 import { Briefcase, Calendar, Building, Users, FileText, Upload, X, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Bell } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, uploadFile, getPublicUrl } from '@/lib/supabase';
@@ -716,16 +717,23 @@ export default function PlacementsScreen() {
                       <TouchableOpacity
                         style={styles.reuploadButton}
                         onPress={() => Linking.openURL(requirementUrls[`${selectedEvent.id}_${requirement.type}`])}
-                      >
-                        <FileText size={16} color="#007AFF" />
-                        <Text style={styles.reuploadText}>View</Text>
-                      </TouchableOpacity>
-                    )}
-                    <TouchableOpacity
-                      style={[styles.reuploadButton, uploading === requirement.type && styles.disabledButton]}
-                      onPress={() => uploadRequirement(selectedEvent.id, requirement.type, selectedEvent.bucket_name)}
-                      disabled={uploading === requirement.type}
-                    >
+                          const openPDF = async () => {
+                            try {
+                              if (Platform.OS === 'web') {
+                                window.open(application.offer_letter_url, '_blank');
+                              } else {
+                                // For mobile, use WebBrowser to open PDF
+                                await WebBrowser.openBrowserAsync(application.offer_letter_url, {
+                                  presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+                                  controlsColor: '#007AFF',
+                                });
+                              }
+                            } catch (error) {
+                              console.error('PDF open error:', error);
+                              Alert.alert('Error', 'Failed to open offer letter. Please check your internet connection.');
+                            }
+                          };
+                          openPDF();
                       <Upload size={16} color="#007AFF" />
                       <Text style={styles.reuploadText}>
                         {uploading === requirement.type ? 'Uploading...' : 'Update'}
