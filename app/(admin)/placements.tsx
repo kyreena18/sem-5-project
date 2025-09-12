@@ -474,16 +474,16 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-        const fileUri = FileSystem.documentDirectory + filename;
+        const fileUri = (FileSystem.documentDirectory || '/tmp/') + filename;
         
         // Ensure the directory exists
-        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory || '/tmp/');
         if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
+          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory || '/tmp/', { intermediates: true });
         }
         
         await FileSystem.writeAsStringAsync(fileUri, wbout, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: FileSystem.EncodingType?.Base64 || 'base64' as any,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
