@@ -218,10 +218,10 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform - save and share
         const zipBase64 = await zip.generateAsync({ type: 'base64' });
-        const fileUri = FileSystem.documentDirectory + zipFileName;
+        const fileUri = (FileSystem.documentDirectory || '') + zipFileName;
         
         await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64' as any,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
@@ -473,16 +473,16 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-        const fileUri = FileSystem.documentDirectory + filename;
+        const fileUri = (FileSystem.documentDirectory || '') + filename;
         
         // Ensure the directory exists
-        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory || '');
         if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
+          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory || '', { intermediates: true });
         }
         
         await FileSystem.writeAsStringAsync(fileUri, wbout, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64' as any,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
