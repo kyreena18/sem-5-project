@@ -10,7 +10,6 @@ import * as XLSX from 'xlsx';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import JSZip from 'jszip';
-import * as WebBrowser from 'expo-web-browser';
 
 interface PlacementEvent {
   id: string;
@@ -219,10 +218,10 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform - save and share
         const zipBase64 = await zip.generateAsync({ type: 'base64' });
-        const fileUri = (FileSystem.documentDirectory || '') + zipFileName;
+        const fileUri = FileSystem.documentDirectory + zipFileName;
         
         await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
-          encoding: 'base64' as any,
+          encoding: FileSystem.EncodingType.Base64,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
@@ -369,8 +368,8 @@ export default function AdminPlacementsScreen() {
           await supabase
             .from('notifications')
             .insert({
-              title: `Application ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-              message: `Your application for ${selectedEvent.title} at ${selectedEvent.company_name} has been ${status}.`,
+              title: `Application Accepted`,
+              message: `Your application for ${selectedEvent.title} at ${selectedEvent.company_name} has been accepted.`,
               type: 'placement',
               target_audience: 'all', // Will be filtered by student
               created_by: user?.id,
@@ -384,7 +383,7 @@ export default function AdminPlacementsScreen() {
     }
   };
 
-  const exportApplicationsToExcel = () => {
+  const exportApplicationsToExcel = async () => {
     if (!selectedEvent || applications.length === 0) {
       Alert.alert('No Data', 'No applications to export');
       return;
@@ -474,16 +473,16 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-        const fileUri = (FileSystem.documentDirectory || '/tmp/') + filename;
+        const fileUri = FileSystem.documentDirectory + filename;
         
         // Ensure the directory exists
-        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory || '/tmp/');
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
         if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory || '/tmp/', { intermediates: true });
+          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
         }
         
         await FileSystem.writeAsStringAsync(fileUri, wbout, {
-          encoding: FileSystem.EncodingType?.Base64 || 'base64' as any,
+          encoding: FileSystem.EncodingType.Base64,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
@@ -504,29 +503,28 @@ export default function AdminPlacementsScreen() {
       Alert.alert('Export Failed', 'Could not export applications to Excel');
     }
   };
-  };
 
   const addAdditionalRequirement = (type: string) => {
-    if (newEvent.additional_requirements.some((req: any) => req.type === type)) {
+    if (newEvent.additional_requirements.some(req => req.type === type)) {
       return; // Already added
     }
-    setNewEvent((prev: any) => ({
+    setNewEvent(prev => ({
       ...prev,
       additional_requirements: [...prev.additional_requirements, { type, required: false }]
     }));
   };
 
   const removeAdditionalRequirement = (type: string) => {
-    setNewEvent((prev: any) => ({
+    setNewEvent(prev => ({
       ...prev,
-      additional_requirements: prev.additional_requirements.filter((req: any) => req.type !== type)
+      additional_requirements: prev.additional_requirements.filter(req => req.type !== type)
     }));
   };
 
   const toggleRequirementRequired = (type: string) => {
-    setNewEvent((prev: any) => ({
+    setNewEvent(prev => ({
       ...prev,
-      additional_requirements: prev.additional_requirements.map((req: any) =>
+      additional_requirements: prev.additional_requirements.map(req =>
         req.type === type ? { ...req, required: !req.required } : req
       )
     }));
@@ -813,9 +811,9 @@ export default function AdminPlacementsScreen() {
                           try {
                              // Open the URL directly - it should now display inline
                              if (Platform.OS === 'web') {
-                               window.open(application.offer_letter_url!, '_blank');
+                               window.open(application.offer_letter_url, '_blank');
                              } else {
-                               WebBrowser.openBrowserAsync(application.offer_letter_url!, {
+                               WebBrowser.openBrowserAsync(application.offer_letter_url, {
                                  presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
                                  controlsColor: '#007AFF',
                                });
@@ -847,6 +845,7 @@ export default function AdminPlacementsScreen() {
       </Modal>
     </LinearGradient>
   );
+}
 
 const styles = StyleSheet.create({
   container: {
