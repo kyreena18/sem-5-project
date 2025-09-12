@@ -218,10 +218,10 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform - save and share
         const zipBase64 = await zip.generateAsync({ type: 'base64' });
-        const fileUri = (FileSystem.documentDirectory || '') + zipFileName;
+        const fileUri = FileSystem.documentDirectory + zipFileName;
         
         await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
-          encoding: 'base64' as any,
+          encoding: FileSystem.EncodingType.Base64,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
@@ -389,128 +389,120 @@ export default function AdminPlacementsScreen() {
       return;
     }
 
-    const exportData = async () => {
-      try {
-        // Get all additional requirement types from the selected event
-        const additionalRequirementTypes = (selectedEvent.additional_requirements || []).map((r: { type: string }) => r.type);
+    try {
+      // Get all additional requirement types from the selected event
+      const additionalRequirementTypes = (selectedEvent.additional_requirements || []).map((r: { type: string }) => r.type);
 
-        const exportData = applications.map((application, index) => ({
-          'S.No': index + 1,
-          'Full Name': application.students?.student_profiles?.full_name || application.students?.name || 'N/A',
-          'UID': application.students?.uid || 'N/A',
-          'Roll Number': application.students?.roll_no || 'N/A',
-          'Email': application.students?.email || 'N/A',
-          'Class': application.students?.student_profiles?.class || 'N/A',
-          'Application Status': application.application_status.toUpperCase(),
-          'Applied Date': formatDate(application.applied_at),
-          'Admin Notes': application.admin_notes || 'No notes',
-          'Resume Link': application.students?.student_profiles?.resume_url 
-            ? application.students.student_profiles.resume_url
-            : 'Not uploaded',
-          'Offer Letter Link': application.offer_letter_url 
-            ? application.offer_letter_url
-            : (application.application_status === 'accepted' ? 'Not uploaded' : 'Not accepted'),
-          // Add additional requirement submission links
-          ...additionalRequirementTypes.reduce((acc, type) => {
-            const reqLabel = type.replace('_', ' ').split(' ').map(word => 
-              word.charAt(0).toUpperCase() + word.slice(1)
-            ).join(' ');
-            const reqKey = `${reqLabel} Link`;
-            
-            // Find the submission for this additional requirement type
-            const submission = application.student_requirement_submissions?.find(sub => 
-              sub.placement_requirements.type === type
-            );
-            
-            if (submission?.file_url) {
-              acc[reqKey] = submission.file_url;
-            } else {
-              acc[reqKey] = 'Not submitted';
-            }
-            return acc;
-          }, {} as Record<string, string>),
-        }));
-
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(exportData);
-
-        const colWidths = [
-          { wch: 6 },   // S.No
-          { wch: 20 },  // Full Name
-          { wch: 12 },  // UID
-          { wch: 15 },  // Roll Number
-          { wch: 25 },  // Email
-          { wch: 8 },   // Class
-          { wch: 15 },  // Application Status
-          { wch: 12 },  // Applied Date
-          { wch: 15 },  // Admin Notes
-          { wch: 15 },  // Resume Link
-          { wch: 18 },  // Offer Letter Link
-          // Add column widths for additional requirement links
-          ...Array(additionalRequirementTypes.length).fill({ wch: 18 }),
-        ];
-        ws['!cols'] = colWidths;
-
-        XLSX.utils.book_append_sheet(wb, ws, 'Applications');
-
-        const timestamp = new Date().toISOString().split('T')[0];
-        const filename = `${selectedEvent.company_name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20)}_Applications_${timestamp}.xlsx`;
-
-        if (Platform.OS === 'web') {
-          // Web platform
-          const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-          const blob = new Blob([wbout], { 
-            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-          });
+      const exportData = applications.map((application, index) => ({
+        'S.No': index + 1,
+        'Full Name': application.students?.student_profiles?.full_name || application.students?.name || 'N/A',
+        'UID': application.students?.uid || 'N/A',
+        'Roll Number': application.students?.roll_no || 'N/A',
+        'Email': application.students?.email || 'N/A',
+        'Class': application.students?.student_profiles?.class || 'N/A',
+        'Application Status': application.application_status.toUpperCase(),
+        'Applied Date': formatDate(application.applied_at),
+        'Admin Notes': application.admin_notes || 'No notes',
+        'Resume Link': application.students?.student_profiles?.resume_url 
+          ? application.students.student_profiles.resume_url
+          : 'Not uploaded',
+        'Offer Letter Link': application.offer_letter_url 
+          ? application.offer_letter_url
+          : (application.application_status === 'accepted' ? 'Not uploaded' : 'Not accepted'),
+        // Add additional requirement submission links
+        ...additionalRequirementTypes.reduce((acc, type) => {
+          const reqLabel = type.replace('_', ' ').split(' ').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' ');
+          const reqKey = `${reqLabel} Link`;
           
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        } else {
-          // Mobile platform
-          const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-          const fileUri = FileSystem.documentDirectory + filename;
+          // Find the submission for this additional requirement type
+          const submission = application.student_requirement_submissions?.find(sub => 
+            sub.placement_requirements.type === type
+          );
           
-          // Ensure the directory exists
-          const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
-          if (!dirInfo.exists) {
-            await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
-          }
-          
-          await FileSystem.writeAsStringAsync(fileUri, wbout, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          
-          const isAvailable = await Sharing.isAvailableAsync();
-          if (isAvailable) {
-            await Sharing.shareAsync(fileUri, {
-              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              dialogTitle: 'Save Excel Report',
-              UTI: 'com.microsoft.excel.xlsx'
-            });
+          if (submission?.file_url) {
+            acc[reqKey] = submission.file_url;
           } else {
-            Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
+            acc[reqKey] = 'Not submitted';
           }
+          return acc;
+        }, {} as Record<string, string>),
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      const colWidths = [
+        { wch: 6 },   // S.No
+        { wch: 20 },  // Full Name
+        { wch: 12 },  // UID
+        { wch: 15 },  // Roll Number
+        { wch: 25 },  // Email
+        { wch: 8 },   // Class
+        { wch: 15 },  // Application Status
+        { wch: 12 },  // Applied Date
+        { wch: 15 },  // Admin Notes
+        { wch: 15 },  // Resume Link
+        { wch: 18 },  // Offer Letter Link
+        // Add column widths for additional requirement links
+        ...Array(additionalRequirementTypes.length).fill({ wch: 18 }),
+      ];
+      ws['!cols'] = colWidths;
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Applications');
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `${selectedEvent.company_name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20)}_Applications_${timestamp}.xlsx`;
+
+      if (Platform.OS === 'web') {
+        // Web platform
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Mobile platform
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        // Ensure the directory exists
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
+        if (!dirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
         }
-
-        Alert.alert('Success', `Excel file downloaded successfully!`);
-      } catch (error) {
-        console.error('Export error:', error);
-        Alert.alert('Export Failed', 'Could not export applications to Excel');
+        
+        await FileSystem.writeAsStringAsync(fileUri, wbout, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            dialogTitle: 'Save Excel Report',
+            UTI: 'com.microsoft.excel.xlsx'
+          });
+        } else {
+          Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
+        }
       }
-    };
 
-    exportData().catch(error => {
+      Alert.alert('Success', `Excel file downloaded successfully!`);
+    } catch (error) {
       console.error('Export error:', error);
       Alert.alert('Export Failed', 'Could not export applications to Excel');
-    });
+    }
   };
-
 
   const addAdditionalRequirement = (type: string) => {
     if (newEvent.additional_requirements.some(req => req.type === type)) {
