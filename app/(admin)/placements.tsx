@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plus, Briefcase, Eye, X, User, Download, FileText } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase, debugSupabaseConfig } from '@/lib/supabase';
 import { formatDate, getStatusColor } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import * as FileSystem from 'expo-file-system';
@@ -43,6 +43,7 @@ interface PlacementApplication {
       description: string;
     };
   }[];
+  offer_letter_url?: string;
   students: {
     name: string;
     email: string;
@@ -217,10 +218,10 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform - save and share
         const zipBase64 = await zip.generateAsync({ type: 'base64' });
-        const fileUri = FileSystem.documentDirectory + zipFileName;
+        const fileUri = (FileSystem.documentDirectory || '') + zipFileName;
         
         await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64' as any,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
@@ -509,28 +510,27 @@ export default function AdminPlacementsScreen() {
     });
   };
 
-
   const addAdditionalRequirement = (type: string) => {
-    if (newEvent.additional_requirements.some(req => req.type === type)) {
+    if (newEvent.additional_requirements.some((req: any) => req.type === type)) {
       return; // Already added
     }
-    setNewEvent(prev => ({
+    setNewEvent((prev: any) => ({
       ...prev,
       additional_requirements: [...prev.additional_requirements, { type, required: false }]
     }));
   };
 
   const removeAdditionalRequirement = (type: string) => {
-    setNewEvent(prev => ({
+    setNewEvent((prev: any) => ({
       ...prev,
-      additional_requirements: prev.additional_requirements.filter(req => req.type !== type)
+      additional_requirements: prev.additional_requirements.filter((req: any) => req.type !== type)
     }));
   };
 
   const toggleRequirementRequired = (type: string) => {
-    setNewEvent(prev => ({
+    setNewEvent((prev: any) => ({
       ...prev,
-      additional_requirements: prev.additional_requirements.map(req =>
+      additional_requirements: prev.additional_requirements.map((req: any) =>
         req.type === type ? { ...req, required: !req.required } : req
       )
     }));
@@ -817,9 +817,9 @@ export default function AdminPlacementsScreen() {
                           try {
                              // Open the URL directly - it should now display inline
                              if (Platform.OS === 'web') {
-                               window.open(application.offer_letter_url, '_blank');
+                               window.open(application.offer_letter_url!, '_blank');
                              } else {
-                               WebBrowser.openBrowserAsync(application.offer_letter_url, {
+                               WebBrowser.openBrowserAsync(application.offer_letter_url!, {
                                  presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
                                  controlsColor: '#007AFF',
                                });
