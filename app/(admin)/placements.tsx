@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import JSZip from 'jszip';
+import * as WebBrowser from 'expo-web-browser';
 
 interface PlacementEvent {
   id: string;
@@ -473,16 +474,16 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-        const fileUri = FileSystem.documentDirectory + filename;
+        const fileUri = (FileSystem.documentDirectory || '/tmp/') + filename;
         
         // Ensure the directory exists
-        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory || '/tmp/');
         if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
+          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory || '/tmp/', { intermediates: true });
         }
         
         await FileSystem.writeAsStringAsync(fileUri, wbout, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: FileSystem.EncodingType?.Base64 || 'base64' as any,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
@@ -503,11 +504,6 @@ export default function AdminPlacementsScreen() {
       Alert.alert('Export Failed', 'Could not export applications to Excel');
     }
   };
-
-    exportData().catch(error => {
-      console.error('Export error:', error);
-      Alert.alert('Export Failed', 'Could not export applications to Excel');
-    });
   };
 
   const addAdditionalRequirement = (type: string) => {
@@ -851,7 +847,6 @@ export default function AdminPlacementsScreen() {
       </Modal>
     </LinearGradient>
   );
-}
 
 const styles = StyleSheet.create({
   container: {
