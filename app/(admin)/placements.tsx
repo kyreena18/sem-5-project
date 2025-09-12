@@ -218,10 +218,10 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform - save and share
         const zipBase64 = await zip.generateAsync({ type: 'base64' });
-        const fileUri = (FileSystem.documentDirectory || '') + zipFileName;
+        const fileUri = FileSystem.documentDirectory + zipFileName;
         
         await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
-          encoding: 'base64' as any,
+          encoding: FileSystem.EncodingType.Base64,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
@@ -331,28 +331,6 @@ export default function AdminPlacementsScreen() {
     }
   };
 
-  const addAdditionalRequirement = (type: string) => {
-    setNewEvent(prev => ({
-      ...prev,
-      additional_requirements: [...prev.additional_requirements, { type, required: false }]
-    }));
-  };
-
-  const removeAdditionalRequirement = (type: string) => {
-    setNewEvent(prev => ({
-      ...prev,
-      additional_requirements: prev.additional_requirements.filter(req => req.type !== type)
-    }));
-  };
-
-  const toggleRequirementRequired = (type: string) => {
-    setNewEvent(prev => ({
-      ...prev,
-      additional_requirements: prev.additional_requirements.map(req =>
-        req.type === type ? { ...req, required: !req.required } : req
-      )
-    }));
-  };
   
   const resetForm = () => {
     setNewEvent({
@@ -524,6 +502,32 @@ export default function AdminPlacementsScreen() {
       console.error('Export error:', error);
       Alert.alert('Export Failed', 'Could not export applications to Excel');
     }
+  };
+
+  const addAdditionalRequirement = (type: string) => {
+    if (newEvent.additional_requirements.some(req => req.type === type)) {
+      return; // Already added
+    }
+    setNewEvent(prev => ({
+      ...prev,
+      additional_requirements: [...prev.additional_requirements, { type, required: false }]
+    }));
+  };
+
+  const removeAdditionalRequirement = (type: string) => {
+    setNewEvent(prev => ({
+      ...prev,
+      additional_requirements: prev.additional_requirements.filter(req => req.type !== type)
+    }));
+  };
+
+  const toggleRequirementRequired = (type: string) => {
+    setNewEvent(prev => ({
+      ...prev,
+      additional_requirements: prev.additional_requirements.map(req =>
+        req.type === type ? { ...req, required: !req.required } : req
+      )
+    }));
   };
 
   const requirementTypes = [
