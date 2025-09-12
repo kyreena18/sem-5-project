@@ -66,30 +66,28 @@ export default function BulkImportScreen() {
         URL.revokeObjectURL(url);
       } else {
         // Mobile platform
-        try {
-          const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-          const fileUri = `${FileSystem.documentDirectory}${filename}`;
-          
-          // Ensure the directory exists
+        const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        // Ensure the directory exists
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
+        if (!dirInfo.exists) {
           await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
-          
-          await FileSystem.writeAsStringAsync(fileUri, wbout, {
-            encoding: FileSystem.EncodingType.Base64,
+        }
+        
+        await FileSystem.writeAsStringAsync(fileUri, wbout, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            dialogTitle: 'Save Template',
+            UTI: 'com.microsoft.excel.xlsx'
           });
-          
-          const isAvailable = await Sharing.isAvailableAsync();
-          if (isAvailable) {
-            await Sharing.shareAsync(fileUri, {
-              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              dialogTitle: 'Save Template',
-              UTI: 'com.microsoft.excel.xlsx'
-            });
-          } else {
-            Alert.alert('File Saved', `Template saved to: ${fileUri}`);
-          }
-        } catch (fileError) {
-          console.error('Template write error:', fileError);
-          throw new Error(`Failed to save template: ${fileError.message}`);
+        } else {
+          Alert.alert('File Saved', `Template saved to: ${fileUri}`);
         }
       }
       

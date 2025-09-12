@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
 // Create Supabase client - will throw error if not configured properly
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -12,7 +12,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'Cache-Control': 'no-cache',
       'Cache-Control': 'public, max-age=3600',
     },
   },
@@ -20,9 +19,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Helper function to check if Supabase is configured
 export const isSupabaseConfigured = () => {
-  return !!(supabaseUrl && supabaseAnonKey && 
+  return !!(
+    supabaseUrl && 
+    supabaseAnonKey && 
+    supabaseUrl !== 'https://placeholder.supabase.co' &&
+    supabaseAnonKey !== 'placeholder-key' &&
     !supabaseUrl.includes('your-project-id') && 
-    !supabaseAnonKey.includes('your-anon-key'));
+    !supabaseAnonKey.includes('your-anon-key')
+  );
+};
+
+// Debug helper to log Supabase configuration
+export const debugSupabaseConfig = () => {
+  console.log('Supabase Debug Info:', {
+    url: supabaseUrl,
+    hasAnonKey: !!supabaseAnonKey,
+    isConfigured: isSupabaseConfigured(),
+    urlValid: !supabaseUrl.includes('placeholder') && !supabaseUrl.includes('your-project-id'),
+    keyValid: !supabaseAnonKey.includes('placeholder') && !supabaseAnonKey.includes('your-anon-key')
+  });
 };
 
 // Helper function to get public URL with proper headers

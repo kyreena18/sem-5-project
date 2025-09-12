@@ -77,6 +77,7 @@ export default function AdminPlacementsScreen() {
   });
 
   useEffect(() => {
+    debugSupabaseConfig();
     loadPlacementEvents();
   }, []);
 
@@ -387,7 +388,7 @@ export default function AdminPlacementsScreen() {
       return;
     }
 
-    const exportData = async () => {
+    try {
       // Get all additional requirement types from the selected event
       const additionalRequirementTypes = (selectedEvent.additional_requirements || []).map((r: { type: string }) => r.type);
 
@@ -402,10 +403,10 @@ export default function AdminPlacementsScreen() {
         'Applied Date': formatDate(application.applied_at),
         'Admin Notes': application.admin_notes || 'No notes',
         'Resume Link': application.students?.student_profiles?.resume_url 
-          ? `=HYPERLINK("${application.students.student_profiles.resume_url}","View Resume")`
+          ? application.students.student_profiles.resume_url
           : 'Not uploaded',
         'Offer Letter Link': application.offer_letter_url 
-          ? `=HYPERLINK("${application.offer_letter_url}","View Offer Letter")`
+          ? application.offer_letter_url
           : (application.application_status === 'accepted' ? 'Not uploaded' : 'Not accepted'),
         // Add additional requirement submission links
         ...additionalRequirementTypes.reduce((acc, type) => {
@@ -420,7 +421,7 @@ export default function AdminPlacementsScreen() {
           );
           
           if (submission?.file_url) {
-            acc[reqKey] = `=HYPERLINK("${submission.file_url}","View ${reqLabel}")`;
+            acc[reqKey] = submission.file_url;
           } else {
             acc[reqKey] = 'Not submitted';
           }
@@ -470,35 +471,37 @@ export default function AdminPlacementsScreen() {
         URL.revokeObjectURL(url);
       } else {
         // Mobile platform
-        try {
-          const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-          const fileUri = `${FileSystem.documentDirectory}${filename}`;
-          
-          // Ensure the directory exists
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        // Ensure the directory exists
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
+        if (!dirInfo.exists) {
           await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
-          
-          await FileSystem.writeAsStringAsync(fileUri, wbout, {
-            encoding: FileSystem.EncodingType.Base64,
+        }
+        
+        await FileSystem.writeAsStringAsync(fileUri, wbout, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            dialogTitle: 'Save Excel Report',
+            UTI: 'com.microsoft.excel.xlsx'
           });
-          
-          const isAvailable = await Sharing.isAvailableAsync();
-          if (isAvailable) {
-            await Sharing.shareAsync(fileUri, {
-              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              dialogTitle: 'Save Excel Report',
-              UTI: 'com.microsoft.excel.xlsx'
-            });
-          } else {
-            Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
-          }
-        } catch (fileError) {
-          console.error('File write error:', fileError);
-          throw new Error(`Failed to save file: ${fileError.message}`);
+        } else {
+          Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
         }
       }
 
       Alert.alert('Success', `Excel file downloaded successfully!`);
-    };
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Export Failed', 'Could not export applications to Excel');
+    }
+  };
 
     exportData().catch(error => {
       console.error('Export error:', error);
@@ -812,12 +815,15 @@ export default function AdminPlacementsScreen() {
                         style={styles.viewOfferLetterButton}
                         onPress={() => {
                           try {
-                           // Open the URL directly - it should now display inline
-                           if (Platform.OS === 'web') {
-                             window.open(application.offer_letter_url, '_blank');
-                           } else {
-                             Linking.openURL(application.offer_letter_url);
-                           }
+                             // Open the URL directly - it should now display inline
+                             if (Platform.OS === 'web') {
+                               window.open(application.offer_letter_url, '_blank');
+                             } else {
+                               WebBrowser.openBrowserAsync(application.offer_letter_url, {
+                                 presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+                                 controlsColor: '#007AFF',
+                               });
+                             }
                           } catch (error) {
                             Alert.alert('Error', 'Failed to open offer letter.');
                           }

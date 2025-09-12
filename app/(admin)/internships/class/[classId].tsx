@@ -252,30 +252,28 @@ export default function ClassView() {
         URL.revokeObjectURL(url);
       } else {
         // Mobile platform
-        try {
-          const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-          const fileUri = `${FileSystem.documentDirectory}${filename}`;
-          
-          // Ensure the directory exists
+        const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        // Ensure the directory exists
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
+        if (!dirInfo.exists) {
           await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
-          
-          await FileSystem.writeAsStringAsync(fileUri, wbout, {
-            encoding: FileSystem.EncodingType.Base64,
+        }
+        
+        await FileSystem.writeAsStringAsync(fileUri, wbout, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            dialogTitle: 'Save Internship Report',
+            UTI: 'com.microsoft.excel.xlsx'
           });
-          
-          const isAvailable = await Sharing.isAvailableAsync();
-          if (isAvailable) {
-            await Sharing.shareAsync(fileUri, {
-              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              dialogTitle: 'Save Internship Report',
-              UTI: 'com.microsoft.excel.xlsx'
-            });
-          } else {
-            Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
-          }
-        } catch (fileError) {
-          console.error('File write error:', fileError);
-          throw new Error(`Failed to save internship report: ${fileError.message}`);
+        } else {
+          Alert.alert('File Saved', `Excel file saved to: ${fileUri}`);
         }
       }
       
@@ -353,30 +351,28 @@ export default function ClassView() {
         URL.revokeObjectURL(url);
       } else {
         // Mobile platform
-        try {
-          const zipBase64 = await zip.generateAsync({ type: 'base64' });
-          const fileUri = `${FileSystem.documentDirectory}${zipFileName}`;
-          
-          // Ensure the directory exists
+        const zipBase64 = await zip.generateAsync({ type: 'base64' });
+        const fileUri = FileSystem.documentDirectory + zipFileName;
+        
+        // Ensure the directory exists
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
+        if (!dirInfo.exists) {
           await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
-          
-          await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
-            encoding: FileSystem.EncodingType.Base64,
+        }
+        
+        await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/zip',
+            dialogTitle: 'Save Documents ZIP',
+            UTI: 'public.zip-archive'
           });
-          
-          const isAvailable = await Sharing.isAvailableAsync();
-          if (isAvailable) {
-            await Sharing.shareAsync(fileUri, {
-              mimeType: 'application/zip',
-              dialogTitle: 'Save Documents ZIP',
-              UTI: 'public.zip-archive'
-            });
-          } else {
-            Alert.alert('File Saved', `ZIP file saved to: ${fileUri}`);
-          }
-        } catch (fileError) {
-          console.error('ZIP write error:', fileError);
-          throw new Error(`Failed to save ZIP file: ${fileError.message}`);
+        } else {
+          Alert.alert('File Saved', `ZIP file saved to: ${fileUri}`);
         }
       }
       
