@@ -12,7 +12,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "server",
+      "output": "server"
     },
     "plugins": ["expo-router", "expo-font", "expo-web-browser"],
     "experiments": {
