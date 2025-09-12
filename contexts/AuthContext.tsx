@@ -56,16 +56,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       
-      if (!supabase) {
+      if (!isSupabaseConfigured()) {
         setLoading(false);
         return { success: false, error: 'Database connection not available. Please check your configuration.' };
       }
 
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('admin_code', code)
-        .maybeSingle();
+      const { data, error } = await safeQuery(() =>
+        supabase
+          .from('admin_users')
+          .select('*')
+          .eq('admin_code', code)
+          .maybeSingle()
+      );
 
       if (error || !data) {
         return { success: false, error: 'Invalid admin code' };
@@ -159,34 +161,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
 
-      if (!supabase) {
+      if (!isSupabaseConfigured()) {
         setLoading(false);
         return { success: false, error: 'Database connection not available. Please check your configuration.' };
       }
 
       // Check if student already exists
-      const { data: existingStudent } = await supabase
-        .from('students')
-        .select('id')
-        .or(`uid.eq.${data.uid},email.eq.${data.email},roll_no.eq.${data.rollNo}`)
-        .maybeSingle();
+      const { data: existingStudent } = await safeQuery(() =>
+        supabase
+          .from('students')
+          .select('id')
+          .or(`uid.eq.${data.uid},email.eq.${data.email},roll_no.eq.${data.rollNo}`)
+          .maybeSingle()
+      );
 
       if (existingStudent) {
         return { success: false, error: 'Student with this UID, email, or roll number already exists' };
       }
 
-      const { data: newStudent, error } = await supabase
-        .from('students')
-        .insert({
-          name: data.name,
-          uid: data.uid,
-          email: data.email,
-          roll_no: data.rollNo,
-          class: 'SYIT', // Default class
-          total_credits: 0,
-        })
-        .select()
-        .maybeSingle();
+      const { data: newStudent, error } = await safeQuery(() =>
+        supabase
+          .from('students')
+          .insert({
+            name: data.name,
+            uid: data.uid,
+            email: data.email,
+            roll_no: data.rollNo,
+            class: 'SYIT', // Default class
+            total_credits: 0,
+          })
+          .select()
+          .maybeSingle()
+      );
 
       if (error || !newStudent) {
         setLoading(false);

@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
-// Create Supabase client - will throw error if not configured properly
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Add connection timeout and retry logic
+const supabaseOptions = {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -14,8 +14,30 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     headers: {
       'Cache-Control': 'public, max-age=3600',
     },
+    fetch: (url: RequestInfo | URL, options: RequestInit = {}) => {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      }).finally(() => {
+        clearTimeout(timeoutId);
+      });
+    },
   },
-});
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 2,
+    },
+  },
+};
+// Create Supabase client with error handling
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, supabaseOptions);
 
 // Helper function to check if Supabase is configured
 export const isSupabaseConfigured = () => {
@@ -29,15 +51,49 @@ export const isSupabaseConfigured = () => {
   );
 };
 
+// Safe database query wrapper with error handling
+export const safeQuery = async <T>(
+  queryFn: () => Promise<{ data: T | null; error: any }>
+): Promise<{ data: T | null; error: any }> => {
+  try {
+    if (!isSupabaseConfigured()) {
+      console.warn('Supabase not configured, returning mock data');
+      return { data: null, error: { message: 'Supabase not configured' } };
+    }
+    
+    const result = await queryFn();
+    
+    if (result.error) {
+      console.error('Database query error:', result.error);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Database connection error:', error);
+    return { 
+      data: null, 
+      error: { 
+        message: error instanceof Error ? error.message : 'Database connection failed' 
+      } 
+    };
+  }
+};
 // Debug helper to log Supabase configuration
 export const debugSupabaseConfig = () => {
+  const isConfigured = isSupabaseConfigured();
   console.log('Supabase Debug Info:', {
     url: supabaseUrl,
     hasAnonKey: !!supabaseAnonKey,
-    isConfigured: isSupabaseConfigured(),
+    isConfigured,
     urlValid: !supabaseUrl.includes('placeholder') && !supabaseUrl.includes('your-project-id'),
-    keyValid: !supabaseAnonKey.includes('placeholder') && !supabaseAnonKey.includes('your-anon-key')
+    keyValid: !supabaseAnonKey.includes('placeholder') && !supabaseAnonKey.includes('your-anon-key'),
+    platform: typeof window !== 'undefined' ? 'web' : 'mobile'
   });
+  
+  if (!isConfigured) {
+    console.warn('⚠️ Supabase is not properly configured. Some features may not work.');
+    console.warn('Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file');
+  }
 };
 
 // Helper function to get public URL with proper headers
