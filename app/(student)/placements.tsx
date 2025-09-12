@@ -802,44 +802,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
-  notificationsSection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 16,
-  },
-  notificationsList: {
-    gap: 16,
-  },
-  notificationCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1C1C1E',
-    marginBottom: 4,
-  },
-  notificationMessage: {
-    fontSize: 14,
-    color: '#6B6B6B',
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  notificationDate: {
-    fontSize: 12,
-    color: '#6B6B6B',
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
