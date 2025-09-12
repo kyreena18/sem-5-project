@@ -474,16 +474,16 @@ export default function AdminPlacementsScreen() {
       } else {
         // Mobile platform
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-        const fileUri = (FileSystem.documentDirectory || '/tmp/') + filename;
+        const fileUri = FileSystem.documentDirectory + filename;
         
         // Ensure the directory exists
-        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory || '/tmp/');
+        const dirInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory);
         if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory || '/tmp/', { intermediates: true });
+          await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory, { intermediates: true });
         }
         
         await FileSystem.writeAsStringAsync(fileUri, wbout, {
-          encoding: FileSystem.EncodingType?.Base64 || 'base64' as any,
+          encoding: FileSystem.EncodingType.Base64,
         });
         
         const isAvailable = await Sharing.isAvailableAsync();
@@ -506,26 +506,26 @@ export default function AdminPlacementsScreen() {
   };
 
   const addAdditionalRequirement = (type: string) => {
-    if (newEvent.additional_requirements.some(req => req.type === type)) {
+    if (newEvent.additional_requirements.some((req: any) => req.type === type)) {
       return; // Already added
     }
-    setNewEvent(prev => ({
+    setNewEvent((prev: any) => ({
       ...prev,
       additional_requirements: [...prev.additional_requirements, { type, required: false }]
     }));
   };
 
   const removeAdditionalRequirement = (type: string) => {
-    setNewEvent(prev => ({
+    setNewEvent((prev: any) => ({
       ...prev,
-      additional_requirements: prev.additional_requirements.filter(req => req.type !== type)
+      additional_requirements: prev.additional_requirements.filter((req: any) => req.type !== type)
     }));
   };
 
   const toggleRequirementRequired = (type: string) => {
-    setNewEvent(prev => ({
+    setNewEvent((prev: any) => ({
       ...prev,
-      additional_requirements: prev.additional_requirements.map(req =>
+      additional_requirements: prev.additional_requirements.map((req: any) =>
         req.type === type ? { ...req, required: !req.required } : req
       )
     }));
