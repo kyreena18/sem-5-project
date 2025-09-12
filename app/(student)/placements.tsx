@@ -1,26 +1,15 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
-import * as FileSystem from 'expo-file-system';
-import { Briefcase, Calendar, Building, Users, FileText, Upload, X, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Bell } from 'lucide-react-native';
+import { Briefcase, Calendar, Building, Users, FileText, Upload, X, CheckCircle, Bell } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, uploadFile, getPublicUrl } from '@/lib/supabase';
+import { supabase, uploadFile } from '@/lib/supabase';
 import { formatDate, getStatusColor, getRequirementLabel } from '@/lib/utils';
 import * as DocumentPicker from 'expo-document-picker';
 
-// Create a cross-platform Linking object
-const Linking = {
-  openURL: (url: string) => {
-    if (Platform.OS === 'web') {
-      return WebBrowser.openBrowserAsync(url);
-    } else {
-      return ExpoLinking.openURL(url);
-    }
-  }
-};
+const openURL = (url: string) => Platform.OS === 'web' ? WebBrowser.openBrowserAsync(url) : ExpoLinking.openURL(url);
 
 interface PlacementEvent {
   id: string;
